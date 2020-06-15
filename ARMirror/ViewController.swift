@@ -14,6 +14,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     @IBOutlet var sceneView: ARSCNView!
     
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -24,20 +26,26 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        //let scene = SCNScene(named: "art.scnassets/ship.scn")!
         
         // Set the scene to the view
-        sceneView.scene = scene
+        //sceneView.scene = scene
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
         // Create a session configuration
+        let defaultConfiguration: ARWorldTrackingConfiguration = {
         let configuration = ARWorldTrackingConfiguration()
-
+        configuration.planeDetection = [.horizontal, .vertical]
+        configuration.environmentTexturing = .automatic
+        configuration.frameSemantics = .personSegmentationWithDepth
+        return configuration
+        }()
+            
         // Run the view's session
-        sceneView.session.run(configuration)
+        sceneView.session.run(defaultConfiguration)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -45,6 +53,41 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Pause the view's session
         sceneView.session.pause()
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        
+        let mirror = SCNScene(named: "art.scnassets/mirror.scn")!
+        let mirrorNode = mirror.rootNode.childNodes.first!
+        mirrorNode.scale = SCNVector3(0.2, 0.2, 0.2)
+        
+        //カメラ座標系で50センチ前
+        let infrontCamera = SCNVector3Make(0, 0, -0.5)
+        guard let cameraNode = sceneView.pointOfView else {
+            return
+        }
+        
+        //ワールド座標系に変換
+        
+        let pointInWorld = cameraNode.convertPosition(infrontCamera, to: nil)
+        
+        //スクリーン座標系へ変換
+        var screenPositon = sceneView.projectPoint(pointInWorld)
+        
+        //スクリーン座標系
+          guard let location = touches.first?.location(in: sceneView) else{
+              return
+          }
+        screenPositon.x = Float(location.x)
+        screenPositon.y = Float(location.y)
+        
+        //ワールド座標系
+        let finalPosition = sceneView.unprojectPoint(screenPositon)
+       
+        mirrorNode.eulerAngles = cameraNode.eulerAngles
+      
+        mirrorNode.position = finalPosition
+        sceneView.scene.rootNode.addChildNode(mirrorNode)
     }
 
     // MARK: - ARSCNViewDelegate
